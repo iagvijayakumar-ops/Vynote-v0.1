@@ -7,24 +7,24 @@ load_dotenv()
 # Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
-# Corrected Inference Router Endpoint (Flan-T5-Large)
-API_URL = "https://router.huggingface.co/hf-inference/models/google/flan-t5-large"
+# Official Inference Endpoint (Stable)
+API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
 
 class NLPService:
     def __init__(self):
         """
         Refactored NLP Service for Production.
-        Uses Hugging Face Inference API for zero memory footprint on Render.
+        Uses stable official Hugging Face API for zero memory footprint.
         """
         self.api_url = API_URL
         self.headers = HEADERS
 
     def _query_hf_api(self, prompt_text: str) -> str:
         """Helper to query the HF Inference API."""
-        # Flan-T5 works best with direct instruction tasks
         payload = {"inputs": prompt_text, "parameters": {"max_new_tokens": 800}}
         
         try:
+            # We use json= here per instructions
             response = requests.post(self.api_url, headers=self.headers, json=payload)
             if response.status_code == 200:
                 result = response.json()
@@ -37,7 +37,7 @@ class NLPService:
 
     def generate_notes(self, transcript_text: str):
         if not transcript_text: return "No transcript provided."
-        prompt = f"Summarize this lecture transcript into clear study notes: {transcript_text[:5000]}"
+        prompt = f"Summarize this lecture transcript into study notes: {transcript_text[:5000]}"
         return self._query_hf_api(prompt)
 
     def generate_extra_glossary(self, text: str, explain_like_five: bool = False) -> str:
@@ -48,5 +48,5 @@ class NLPService:
         return self._query_hf_api(prompt)
 
     def quick_chat(self, user_query: str) -> str:
-        prompt = f"Answer this student question: {user_query}"
+        prompt = f"Answer this question briefly: {user_query}"
         return self._query_hf_api(prompt)

@@ -8,15 +8,15 @@ load_dotenv()
 # Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
-# Upgraded Inference Router Endpoints
-EMBED_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2"
-CHAT_URL = "https://router.huggingface.co/hf-inference/models/google/flan-t5-large"
+# Official Inference Endpoints (Stable)
+EMBED_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+CHAT_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
 
 class RAGService:
     def __init__(self):
         """
         Refactored RAG Service for Production (Zero-Memory footprint).
-        Uses Hugging Face Inference API for stable embeddings and Flan-T5-Large generation.
+        Uses official Hugging Face Inference API for stability.
         """
         self.headers = HEADERS
         self.sessions = {}
@@ -61,12 +61,11 @@ class RAGService:
         top_chunks = [session["chunks"][idx] for _, idx in scores[:2]]
         context = " ".join(top_chunks)
         
-        # Flan-T5 works well with context-aware question answering
-        prompt = f"Answer this question briefly using the provided context. Context: '{context}' Question: '{query}'"
+        prompt = f"Answer this question briefly based on the provided context. Context: '{context}' Question: '{query}'"
         payload = {"inputs": prompt}
         
         try:
-            # CORRECT FORMAT FOR FLAN-T5-LARGE: json={"inputs": prompt} on the hf-inference route
+            # Shifted to official API from router for stability
             res = requests.post(CHAT_URL, headers=self.headers, json=payload)
             if res.status_code == 200:
                 answer = res.json()

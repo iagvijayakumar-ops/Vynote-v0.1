@@ -12,10 +12,10 @@ HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 class WhisperService:
     def __init__(self):
         """
-        Uses Hugging Face Inference API for Whisper transcription.
-        Binary data format is required for audio models.
+        Uses Hugging Face official Inference API for Whisper transcription.
+        This endpoint is more stable than the router for serverless models.
         """
-        self.api_url = "https://router.huggingface.co/hf-inference/models/openai/whisper-small"
+        self.api_url = "https://api-inference.huggingface.co/models/openai/whisper-small"
         self.headers = HEADERS
 
     def transcribe_audio(self, file_path: str) -> dict:
@@ -25,21 +25,20 @@ class WhisperService:
         with open(file_path, "rb") as f:
             audio_binary = f.read()
 
-        # CORRECT FORMAT FOR AUDIO: Binary data
+        # Official API call using binary data
         response = requests.post(self.api_url, headers=self.headers, data=audio_binary)
         
         if response.status_code == 200:
             result = response.json()
             raw_text = result.get("text", "").strip()
             
-            # Simulated segments for frontend workspace
             simulated_detailed = [{
                 "speaker": "Speaker 1",
                 "word": word,
                 "start_time": idx * 0.5,
                 "end_time": (idx + 1) * 0.5,
                 "confidence": 0.99
-            } for idx, word in enumerate(raw_text.split()[:200])] 
+            } for idx, word in enumerate(raw_text.split()[:200])]
 
             return {
                 "transcription": raw_text,
