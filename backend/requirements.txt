@@ -1,18 +1,6 @@
 flask
 flask-cors
-openai-whisper
-openai
-torch==2.11.0+cpu
---extra-index-url https://download.pytorch.org/whl/cpu
-torchvision
-torchaudio
-pydantic
+gunicorn
+requests
 python-dotenv
 yt-dlp
-langchain
-langchain-ollama
-chromadb
-sentence-transformers
-langchain-community
-gunicorn
-

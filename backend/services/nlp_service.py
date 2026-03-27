@@ -1,6 +1,5 @@
 import os
-from langchain_ollama import OllamaLLM
-from langchain_core.prompts import PromptTemplate
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -8,94 +7,65 @@ load_dotenv()
 class NLPService:
     def __init__(self):
         """
-        Initializes the NLP Service with optimized lightweight models for CPU.
-        Primary: phi3 (3.8B) - approx 3-4x faster than llama3 on CPU.
+        Refactored NLP Service for Production.
+        Uses Hugging Face Inference API (Mistral-7B or Phi-3) 
+        instead of local Ollama for zero memory footprint on Render.
         """
-        print("NLP Service: Initializing with Phi-3 (Fast & Free)...")
+        self.api_token = os.getenv("HF_TOKEN")
+        # Mistral-7B-Instruct is a high-quality production-ready instruction model
+        self.model_id = "mistralai/Mistral-7B-Instruct-v0.3"
+        self.api_url = f"https://api-inference.huggingface.co/models/{self.model_id}"
+        self.headers = {"Authorization": f"Bearer {self.api_token}"} if self.api_token else {}
+
+        if not self.api_token:
+            print("WARNING: HF_TOKEN not set in NLPService. AI generation will fail.")
+
+    def _query_hf_api(self, prompt_text: str) -> str:
+        """Helper to query the HF Inference API."""
+        payload = {
+            "inputs": f"<s>[INST] {prompt_text} [/INST]",
+            "parameters": {"max_new_tokens": 1024, "top_k": 30, "return_full_text": False}
+        }
+        
         try:
-             # phi3 is chosen for its extreme speed and efficiency on consumer hardware
-             self.llm = OllamaLLM(model="phi3")
+            response = requests.post(self.api_url, headers=self.headers, json=payload)
+            if response.status_code == 200:
+                result = response.json()
+                # Handle both list responses and dictionary responses from HF
+                if isinstance(result, list) and len(result) > 0:
+                    return result[0].get("generated_text", "").strip()
+                return result.get("generated_text", "").strip()
+            return f"Error: API returned {response.status_code} - {response.text}"
         except Exception as e:
-             print(f"NLP Service Warning: Ollama not reachable / model not found. {e}")
-             self.llm = None
+            return f"AI API Connection Error: {str(e)}"
 
     def generate_notes(self, transcript_text: str):
-        """
-        Optimized note generation using high-quality but concise prompting.
-        Truncates long inputs to ensure stable CPU inference.
-        """
-        if not transcript_text or len(transcript_text.strip()) < 50:
-            return "Transcript too short to generate notes."
-
-        if self.llm is None:
-             return "Ollama (phi3) required. Run 'ollama run phi3'."
-
-        # PROMPT OPTIMIZATION: Shortened instructions for faster generation
-        truncated_text = transcript_text[:8000] 
-
-        template = """
-        System: You are an expert academic scribe. Rewrite the lecture text into structured notes.
-        Format:
-        📘 Title: [Short & Academic]
-        📌 Key Points:
-        1. [Topic]: [Clear explanation]
-        2. ...
+        """Standard note generation via external API."""
+        if not transcript_text: return "No transcript provided."
         
-        Transcript: "{text}"
+        prompt = f"""
+        System: Act as an elite academic scribe. Transform this lecture transcript into structured notes.
+        Instructions: 
+        1. Create a Descriptive Title.
+        2. Identify 5-7 Key Concepts with clear explanations.
+        3. Use Markdown.
+        
+        Transcript: "{transcript_text[:10000]}"
         
         Final Notes:
         """
-        
-        prompt = PromptTemplate(input_variables=["text"], template=template)
-        formatted = prompt.format(text=truncated_text)
-        
-        try:
-             return self.llm.invoke(formatted)
-        except Exception as e:
-             return f"Generation failed: {str(e)}"
+        return self._query_hf_api(prompt)
 
     def generate_extra_glossary(self, text: str, explain_like_five: bool = False) -> str:
-        """
-        Fast glossary extraction with minimal instructions.
-        """
-        if self.llm is None: return "Ollama required."
-        
-        truncated_text = text[:4000] 
-              
+        """Glossary extraction via external API."""
         if explain_like_five:
-             template = 'Explain the core concept of this text to a 5-year old: "{text}"'
+             prompt = f"Explain the core message of this academic text to 5-year-old: '{text[:8000]}'"
         else:
-             template = 'Extract 5 key terms and definitions from this text: "{text}"'
+             prompt = f"Extract 5 key technical terms and their one-sentence definitions from this text: '{text[:8000]}'"
              
-        prompt = PromptTemplate(input_variables=["text"], template=template)
-        formatted = prompt.format(text=truncated_text)
-        
-        try:
-             return self.llm.invoke(formatted)
-        except Exception as e:
-             return f"Failed: {str(e)}"
+        return self._query_hf_api(prompt)
 
     def quick_chat(self, user_query: str) -> str:
-        """
-        Direct chat with LLM (phi3) for general queries or academic discussion.
-        Used for the new full-page chat feature in 'Vynote'.
-        """
-        if self.llm is None:
-             return "AI Backend Offline. Ensure Ollama 'phi3' is running."
-             
-        # Optimized system prompt for Vynote assistant
-        template = """
-        System: You are 'Vynote AI', a premium academic assistant. 
-        Be professional, concise, and smart. Assist the user with their question.
-        
-        User: {query}
-        Vynote AI: 
-        """
-        
-        prompt = PromptTemplate(input_variables=["query"], template=template)
-        formatted = prompt.format(query=user_query)
-        
-        try:
-             return self.llm.invoke(formatted)
-        except Exception as e:
-             return f"Chat error: {str(e)}"
+        """Discussion assistant via external API."""
+        prompt = f"System: You are 'Vynote AI', a helpful student assistant. Be concise.\nUser: {user_query}\nVynote AI:"
+        return self._query_hf_api(prompt)
