@@ -10,7 +10,7 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 # Corrected Router Endpoints
 EMBED_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2"
-CHAT_URL = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3"
+CHAT_URL = "https://router.huggingface.co/hf-inference/models/google/flan-t5-base"
 
 class RAGService:
     def __init__(self):
@@ -23,7 +23,6 @@ class RAGService:
 
     def _get_embedding(self, text: str):
         """Helper to get text embeddings from HF API."""
-        # CORRECT FORMAT FOR TEXT MODELS: JSON with 'inputs' field.
         response = requests.post(EMBED_URL, headers=self.headers, json={"inputs": text})
         if response.status_code == 200:
             return response.json()
@@ -66,11 +65,9 @@ class RAGService:
         context = " ".join(top_chunks)
         
         prompt = f"Using this context: '{context}', answer the user question briefly: '{query}'"
-        payload = {"inputs": f"<s>[INST] {prompt} [/INST]", "parameters": {"max_new_tokens": 512}}
         
         try:
-            # CORRECT FORMAT FOR TEXT MODELS: JSON with 'inputs' field.
-            res = requests.post(CHAT_URL, headers=self.headers, json=payload)
+            res = requests.post(CHAT_URL, headers=self.headers, json={"inputs": prompt})
             if res.status_code == 200:
                 answer = res.json()
                 if isinstance(answer, list): return answer[0].get("generated_text", "").strip()
