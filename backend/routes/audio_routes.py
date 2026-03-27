@@ -3,7 +3,7 @@ import os
 import uuid
 import yt_dlp
 from werkzeug.utils import secure_filename
-from ..services.whisper_service import WhisperService
+from services.whisper_service import WhisperService
 
 audio_bp = Blueprint('audio', __name__)
 

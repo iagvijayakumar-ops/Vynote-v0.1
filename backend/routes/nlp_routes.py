@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from ..services.nlp_service import NLPService
-from ..services.assessment_service import AssessmentService
+from services.nlp_service import NLPService
+from services.assessment_service import AssessmentService
 
 nlp_bp = Blueprint('nlp', __name__)
 nlp_service = NLPService()

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from ..services.rag_service import RAGService
+from services.rag_service import RAGService
 
 rag_bp = Blueprint('rag', __name__)
 rag_service = RAGService()
