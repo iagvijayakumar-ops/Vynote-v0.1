@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { PlayCircle, Youtube, CloudUpload } from 'lucide-react';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const AudioIngestion = ({ setTranscriptData, setAudioUrl, setLoading }) => {
   const [file, setFile] = useState(null);

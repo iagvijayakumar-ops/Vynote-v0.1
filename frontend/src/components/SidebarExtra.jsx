@@ -7,7 +7,7 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { Loader2, Zap, Brain, MessageSquare } from 'lucide-react';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const SidebarExtra = ({ transcriptData, onNotesGenerated }) => {
   const [activeTab, setActiveTab] = useState('notes');
