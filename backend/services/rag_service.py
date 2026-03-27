@@ -8,15 +8,15 @@ load_dotenv()
 # Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
-# Corrected Inference Router Endpoints
+# Upgraded Inference Router Endpoints
 EMBED_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2"
-CHAT_URL = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn"
+CHAT_URL = "https://router.huggingface.co/hf-inference/models/HuggingFaceH4/zephyr-7b-beta"
 
 class RAGService:
     def __init__(self):
         """
         Refactored RAG Service for Production (Zero-Memory footprint).
-        Uses Hugging Face Inference API for both embeddings and BART generation.
+        Uses Hugging Face Inference API for both embeddings and Zephyr-7B generation.
         """
         self.headers = HEADERS
         self.sessions = {}
@@ -61,16 +61,17 @@ class RAGService:
         top_chunks = [session["chunks"][idx] for _, idx in scores[:2]]
         context = " ".join(top_chunks)
         
-        prompt = f"Using this context: '{context}', answer the user question briefly: '{query}'"
-        payload = {"inputs": prompt}
+        # Zephyr-7B-Beta works best with instruction prompting context injection
+        prompt = f"<|system|>\nYou are Vynote Search, a helpful academic assistant. Answer briefly using this context: '{context}'</s>\n<|user|>\n{query}</s>\n<|assistant|>\n"
+        payload = {"inputs": prompt, "parameters": {"max_new_tokens": 512, "return_full_text": False}}
         
         try:
-            # CORRECT FORMAT FOR BART: json={"inputs": prompt} on the hf-inference route
+            # CORRECT FORMAT FOR ZEPHYR: json={"inputs": prompt} on the hf-inference route
             res = requests.post(CHAT_URL, headers=self.headers, json=payload)
             if res.status_code == 200:
                 answer = res.json()
                 if isinstance(answer, list) and len(answer) > 0:
-                    return answer[0].get("summary_text", "") or answer[0].get("generated_text", "")
+                    return answer[0].get("generated_text", "").strip()
                 return answer.get("generated_text", "").strip()
             return f"Search result found context but failed into generate answer: {context[:100]}..."
         except Exception as e:

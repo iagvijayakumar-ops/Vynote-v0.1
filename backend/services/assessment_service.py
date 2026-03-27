@@ -8,8 +8,8 @@ load_dotenv()
 # Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
-# Corrected Inference Router Endpoint
-API_URL = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn"
+# Upgraded Inference Router Endpoint (Zephyr-7B-Beta)
+API_URL = "https://router.huggingface.co/hf-inference/models/HuggingFaceH4/zephyr-7b-beta"
 
 class AssessmentService:
     def __init__(self):
@@ -24,19 +24,32 @@ class AssessmentService:
         """Generates Quiz and Flashcards via external API."""
         if not structured_notes: return {"error": "Empty notes."}
         
-        # Note: facebook/bart-large-cnn is primarily a summarization model.
-        # It's less reliable at complex JSON formatting than Mistral, so we simplify.
-        prompt = f"Summarize these notes into questions and answers: {structured_notes[:2000]}"
+        # Zephyr-7B-Beta is highly instruction-tuned for JSON formats
+        prompt = f"""<|system|>
+        Act as an educator. Based only on the notes, generate a study tool.
+        Return ONLY a JSON object with this exact schema:
+        {{
+            "flashcards": [ {{"front": "...", "back": "..."}} ],
+            "quizzes": [ {{"question": "...", "options": ["...", "...", "...", "..."], "answer": "..."}} ]
+        }}
+        </s>
+        <|user|>
+        NOTES: {structured_notes[:5000]}
+        </s>
+        <|assistant|>
+        JSON:"""
+        
+        payload = {"inputs": prompt, "parameters": {"max_new_tokens": 1024, "return_full_text": False}}
         
         try:
-            # CORRECT FORMAT FOR BART: json={"inputs": prompt} on the hf-inference route
-            res = requests.post(self.api_url, headers=self.headers, json={"inputs": prompt})
+            # CORRECT FORMAT FOR ZEPHYR: json={"inputs": prompt} on the hf-inference route
+            res = requests.post(self.api_url, headers=self.headers, json=payload)
             if res.status_code == 200:
                 text = res.json()
-                if isinstance(text, list): text = text[0].get("summary_text", "{}")
-                else: text = text.get("summary_text", "{}")
+                if isinstance(text, list): text = text[0].get("generated_text", "{}")
+                else: text = text.get("generated_text", "{}")
                 
-                # Cleanup for JSON extraction fallback
+                # Simple cleanup for JSON extraction
                 try:
                     clean_text = text.replace("```json", "").replace("```", "").strip()
                     return json.loads(clean_text)
