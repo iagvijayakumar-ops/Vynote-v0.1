@@ -7,8 +7,8 @@ load_dotenv()
 # Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
-# Upgraded Inference Router Endpoint (Zephyr-7B-Beta)
-API_URL = "https://router.huggingface.co/hf-inference/models/HuggingFaceH4/zephyr-7b-beta"
+# Corrected Inference Router Endpoint (Flan-T5-Large)
+API_URL = "https://router.huggingface.co/hf-inference/models/google/flan-t5-large"
 
 class NLPService:
     def __init__(self):
@@ -21,9 +21,8 @@ class NLPService:
 
     def _query_hf_api(self, prompt_text: str) -> str:
         """Helper to query the HF Inference API."""
-        # Zephyr-7B-Beta works best with simple instruction prompting
-        formatted_prompt = f"<|system|>\nYou are Vynote AI, a helpful student assistant.</s>\n<|user|>\n{prompt_text}</s>\n<|assistant|>\n"
-        payload = {"inputs": formatted_prompt, "parameters": {"max_new_tokens": 800, "return_full_text": False}}
+        # Flan-T5 works best with direct instruction tasks
+        payload = {"inputs": prompt_text, "parameters": {"max_new_tokens": 800}}
         
         try:
             response = requests.post(self.api_url, headers=self.headers, json=payload)
@@ -38,16 +37,16 @@ class NLPService:
 
     def generate_notes(self, transcript_text: str):
         if not transcript_text: return "No transcript provided."
-        prompt = f"Transform this transcript into detailed study notes with a clear title and bullet points: {transcript_text[:5000]}"
+        prompt = f"Summarize this lecture transcript into clear study notes: {transcript_text[:5000]}"
         return self._query_hf_api(prompt)
 
     def generate_extra_glossary(self, text: str, explain_like_five: bool = False) -> str:
         if explain_like_five:
-             prompt = f"Explain this academic content as if to a child: {text[:5000]}"
+             prompt = f"Explain this academic concept simply: {text[:5000]}"
         else:
-             prompt = f"Extract key technical terms and their one-sentence definitions from: {text[:5000]}"
+             prompt = f"List technical terms and their one-sentence definitions from: {text[:5000]}"
         return self._query_hf_api(prompt)
 
     def quick_chat(self, user_query: str) -> str:
-        prompt = f"Answer this student question concisely: {user_query}"
+        prompt = f"Answer this student question: {user_query}"
         return self._query_hf_api(prompt)

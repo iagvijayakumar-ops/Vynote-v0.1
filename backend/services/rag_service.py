@@ -10,13 +10,13 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 # Upgraded Inference Router Endpoints
 EMBED_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2"
-CHAT_URL = "https://router.huggingface.co/hf-inference/models/HuggingFaceH4/zephyr-7b-beta"
+CHAT_URL = "https://router.huggingface.co/hf-inference/models/google/flan-t5-large"
 
 class RAGService:
     def __init__(self):
         """
         Refactored RAG Service for Production (Zero-Memory footprint).
-        Uses Hugging Face Inference API for both embeddings and Zephyr-7B generation.
+        Uses Hugging Face Inference API for stable embeddings and Flan-T5-Large generation.
         """
         self.headers = HEADERS
         self.sessions = {}
@@ -61,12 +61,12 @@ class RAGService:
         top_chunks = [session["chunks"][idx] for _, idx in scores[:2]]
         context = " ".join(top_chunks)
         
-        # Zephyr-7B-Beta works best with instruction prompting context injection
-        prompt = f"<|system|>\nYou are Vynote Search, a helpful academic assistant. Answer briefly using this context: '{context}'</s>\n<|user|>\n{query}</s>\n<|assistant|>\n"
-        payload = {"inputs": prompt, "parameters": {"max_new_tokens": 512, "return_full_text": False}}
+        # Flan-T5 works well with context-aware question answering
+        prompt = f"Answer this question briefly using the provided context. Context: '{context}' Question: '{query}'"
+        payload = {"inputs": prompt}
         
         try:
-            # CORRECT FORMAT FOR ZEPHYR: json={"inputs": prompt} on the hf-inference route
+            # CORRECT FORMAT FOR FLAN-T5-LARGE: json={"inputs": prompt} on the hf-inference route
             res = requests.post(CHAT_URL, headers=self.headers, json=payload)
             if res.status_code == 200:
                 answer = res.json()
