@@ -3,6 +3,12 @@ import requests
 import time
 from dotenv import load_dotenv
 
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+headers = {
+    "Authorization": f"Bearer {HF_TOKEN}"
+}
+
 load_dotenv()
 
 class WhisperService:
