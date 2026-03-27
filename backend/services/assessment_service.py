@@ -14,7 +14,7 @@ class AssessmentService:
         self.api_token = os.getenv("HF_TOKEN")
         # Mistral-7B-Instruct-v0.3 is excellent at following JSON formatting instructions
         self.model_id = "mistralai/Mistral-7B-Instruct-v0.3"
-        self.api_url = f"https://api-inference.huggingface.co/models/{self.model_id}"
+        self.api_url = f"https://router.huggingface.co/hf-inference/models/{self.model_id}"
         self.headers = {"Authorization": f"Bearer {self.api_token}"} if self.api_token else {}
 
     def generate_quiz_cards(self, structured_notes: str) -> dict:

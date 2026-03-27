@@ -15,7 +15,7 @@ class RAGService:
         self.api_token = os.getenv("HF_TOKEN")
         # Lightweight and accurate embedding model for API inference
         self.model_id = "sentence-transformers/all-MiniLM-L6-v2"
-        self.api_url = f"https://api-inference.huggingface.co/models/{self.model_id}"
+        self.api_url = f"https://router.huggingface.co/hf-inference/models/{self.model_id}"
         self.headers = {"Authorization": f"Bearer {self.api_token}"} if self.api_token else {}
         
         # Session storage: session_id -> { "chunks": [str], "embeddings": [[float]] }
@@ -77,7 +77,7 @@ class RAGService:
         # 4. Final Answer Generation via API (Mistral)
         # We reuse the NLP methodology here for zero local CPU load
         nlp_token = os.getenv("HF_TOKEN")
-        nlp_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
+        nlp_url = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3"
         nlp_headers = {"Authorization": f"Bearer {nlp_token}"}
         
         prompt = f"Using this context: '{context}', answer the user question briefly: '{query}'"

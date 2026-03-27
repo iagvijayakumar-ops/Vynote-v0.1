@@ -14,7 +14,7 @@ class WhisperService:
         """
         self.api_token = os.getenv("HF_TOKEN")
         self.model_id = "openai/whisper-small"
-        self.api_url = f"https://api-inference.huggingface.co/models/{self.model_id}"
+        self.api_url = f"https://router.huggingface.co/hf-inference/models/{self.model_id}"
         self.headers = {"Authorization": f"Bearer {self.api_token}"} if self.api_token else {}
         
         if not self.api_token:
