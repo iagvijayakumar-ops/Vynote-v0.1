@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Production API Configuration
+# Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 # Corrected Router Endpoint per Senior Engineer instructions
@@ -19,18 +19,21 @@ class NLPService:
         self.api_url = API_URL
         self.headers = HEADERS
 
-        if not HF_TOKEN:
-            print("WARNING: HF_TOKEN not set in NLPService. AI generation will fail.")
-
     def _query_hf_api(self, prompt_text: str) -> str:
-        """Helper to query the HF Inference API."""
+        """
+        Helper to query the HF Inference API.
+        CORRECT FORMAT FOR TEXT MODELS: JSON with 'inputs' field.
+        """
+        # Strictly following requested JSON format: {"inputs": prompt}
         payload = {
             "inputs": f"<s>[INST] {prompt_text} [/INST]",
-            "parameters": {"max_new_tokens": 1024, "top_k": 30, "return_full_text": False}
+            "parameters": {"max_new_tokens": 1024} # Keep minimal necessary
         }
         
         try:
+            # We use json= here, NOT data= per instructions
             response = requests.post(self.api_url, headers=self.headers, json=payload)
+            
             if response.status_code == 200:
                 result = response.json()
                 if isinstance(result, list) and len(result) > 0:
@@ -41,32 +44,17 @@ class NLPService:
             return f"AI API Connection Error: {str(e)}"
 
     def generate_notes(self, transcript_text: str):
-        """Standard note generation via external API."""
         if not transcript_text: return "No transcript provided."
-        
-        prompt = f"""
-        System: Act as an elite academic scribe. Transform this lecture transcript into structured notes.
-        Instructions: 
-        1. Create a Descriptive Title.
-        2. Identify 5-7 Key Concepts with clear explanations.
-        3. Use Markdown.
-        
-        Transcript: "{transcript_text[:10000]}"
-        
-        Final Notes:
-        """
+        prompt = f"System: Act as an academic scribe. Transform this transcript into notes: '{transcript_text[:10000]}'"
         return self._query_hf_api(prompt)
 
     def generate_extra_glossary(self, text: str, explain_like_five: bool = False) -> str:
-        """Glossary extraction via external API."""
         if explain_like_five:
              prompt = f"Explain the core message of this academic text to 5-year-old: '{text[:8000]}'"
         else:
-             prompt = f"Extract 5 key technical terms and their one-sentence definitions from this text: '{text[:8000]}'"
-             
+             prompt = f"Extract 5 technical terms and definitions: '{text[:8000]}'"
         return self._query_hf_api(prompt)
 
     def quick_chat(self, user_query: str) -> str:
-        """Discussion assistant via external API."""
-        prompt = f"System: You are 'Vynote AI', a helpful student assistant. Be concise.\nUser: {user_query}\nVynote AI:"
+        prompt = f"You are 'Vynote AI', a student assistant. User: {user_query}"
         return self._query_hf_api(prompt)

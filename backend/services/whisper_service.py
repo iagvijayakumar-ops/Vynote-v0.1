@@ -3,79 +3,52 @@ import requests
 import time
 from dotenv import load_dotenv
 
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-headers = {
-    "Authorization": f"Bearer {HF_TOKEN}"
-}
-
 load_dotenv()
+
+# Production API Configuration per Senior Engineer
+HF_TOKEN = os.getenv("HF_TOKEN")
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 
 class WhisperService:
     def __init__(self):
         """
         Uses Hugging Face Inference API for Whisper transcription.
-        This avoids loading heavy models (5-10GB) into memory, 
-        making it perfect for Render's 512MB RAM free tier.
+        Binary data format is required for audio models.
         """
-        self.api_token = os.getenv("HF_TOKEN")
-        self.model_id = "openai/whisper-small"
         self.api_url = "https://router.huggingface.co/hf-inference/models/openai/whisper-small"
-        self.headers = {"Authorization": f"Bearer {self.api_token}"} if self.api_token else {}
-        
-        if not self.api_token:
-            print("WARNING: HF_TOKEN not set in environment variables. Transcriptions may fail.")
+        self.headers = HEADERS
 
     def transcribe_audio(self, file_path: str) -> dict:
-        """
-        Sends audio file to Hugging Face Inference API.
-        Returns a dictionary compatible with the frontend expectations.
-        """
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Audio file not found: {file_path}")
+            raise FileNotFoundError(file_path)
 
-        print(f"WHISPER SERVICE: Transcribing {file_path} via Hugging Face API...")
-        
         with open(file_path, "rb") as f:
-            data = f.read()
+            audio_binary = f.read()
 
-        # Hugging Face Inference API call
-        response = requests.post(self.api_url, headers=self.headers, data=data)
+        # CORRECT FORMAT FOR AUDIO: Binary data
+        response = requests.post(self.api_url, headers=self.headers, data=audio_binary)
         
         if response.status_code == 200:
             result = response.json()
             raw_text = result.get("text", "").strip()
             
-            # To keep the FE from crashing, we simulate a simple 'detailed' segment
-            # since the HF Whisper API returns text by default. 
-            # In production, we'd use HF with timestamp parameters.
+            # Simulated segments for frontend workspace
             simulated_detailed = [{
                 "speaker": "Speaker 1",
                 "word": word,
                 "start_time": idx * 0.5,
                 "end_time": (idx + 1) * 0.5,
                 "confidence": 0.99
-            } for idx, word in enumerate(raw_text.split()[:200])] # Limit mockup
+            } for idx, word in enumerate(raw_text.split()[:200])] 
 
             return {
-                "transcription": raw_text, # As requested in Step 1141
-                "text": raw_text,         # For legacy/frontend compatibility
-                "detailed": simulated_detailed, # Necessary to prevent blank FE UI
+                "transcription": raw_text,
+                "text": raw_text,         
+                "detailed": simulated_detailed,
                 "status": "success"
             }
         elif response.status_code == 503:
-            # Model is loading
-            print("WHISPER SERVICE: Model is loading on HF. Waiting 10s...")
             time.sleep(10)
-            return self.transcribe_audio(file_path) # Retry
+            return self.transcribe_audio(file_path)
         else:
-            error_msg = f"HF API Error: {response.status_code} - {response.text}"
-            print(f"WHISPER SERVICE ERROR: {error_msg}")
-            raise Exception(error_msg)
-
-if __name__ == "__main__":
-    # Test Whisper API
-    # w = WhisperService()
-    # transcript = w.transcribe_audio("test.mp3")
-    # print(transcript)
-    pass
+            raise Exception(f"HF Audio API Error: {response.status_code} - {response.text}")

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Production API Configuration
+# Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 # Corrected Router Endpoints
@@ -23,13 +23,13 @@ class RAGService:
 
     def _get_embedding(self, text: str):
         """Helper to get text embeddings from HF API."""
+        # CORRECT FORMAT FOR TEXT MODELS: JSON with 'inputs' field.
         response = requests.post(EMBED_URL, headers=self.headers, json={"inputs": text})
         if response.status_code == 200:
             return response.json()
         return None
 
     def index_document(self, transcript_text: str) -> str:
-        """Chunks the transcript and pre-computes embeddings via API."""
         if not transcript_text: return None
         
         chunks = [transcript_text[i:i+500] for i in range(0, len(transcript_text), 400)]
@@ -49,10 +49,6 @@ class RAGService:
         return None
 
     def query_document(self, session_id: str, query: str) -> str:
-        """
-        Retrieves context using cosine-similarity (pure Python) and 
-        returns the query + context for the NLP service to handle.
-        """
         if session_id not in self.sessions: return "Session expired or missing."
         
         session = self.sessions[session_id]
@@ -73,6 +69,7 @@ class RAGService:
         payload = {"inputs": f"<s>[INST] {prompt} [/INST]", "parameters": {"max_new_tokens": 512}}
         
         try:
+            # CORRECT FORMAT FOR TEXT MODELS: JSON with 'inputs' field.
             res = requests.post(CHAT_URL, headers=self.headers, json=payload)
             if res.status_code == 200:
                 answer = res.json()

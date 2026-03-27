@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Production API Configuration
+# Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
-# Corrected Router Endpoint
+# Corrected Router Endpoint per Senior Engineer instructions
 API_URL = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3"
 
 class AssessmentService:
@@ -25,10 +25,10 @@ class AssessmentService:
         if not structured_notes: return {"error": "Empty notes."}
         
         prompt = f"""
-        Act as an expert academic educator. Based on these lecture notes, 
+        Act as an educator. Based on these lecture notes, 
         generate:
         1. 3 Flashcards (front/back)
-        2. 2 Multiple Choice Questions (with 4 options and 1 correct answer)
+        2. 2 Multiple Choice Questions (options + answer)
         
         Return the result ONLY as a raw JSON object with this exact schema:
         {{
@@ -42,12 +42,14 @@ class AssessmentService:
         JSON:
         """
         
+        # CORRECT FORMAT FOR TEXT MODELS: JSON with 'inputs' field.
         payload = {
             "inputs": f"<s>[INST] {prompt} [/INST]",
             "parameters": {"max_new_tokens": 800, "temperature": 0.1, "return_full_text": False}
         }
         
         try:
+            # We use json= here, NOT data= per instructions
             res = requests.post(self.api_url, headers=self.headers, json=payload)
             if res.status_code == 200:
                 text = res.json()
