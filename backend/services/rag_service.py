@@ -7,22 +7,28 @@ load_dotenv()
 
 # Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
-HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
-# Corrected Router Endpoints
+HEADERS = {
+    "Authorization": f"Bearer {HF_TOKEN}",
+    "Content-Type": "application/json"
+}
+
+# Corrected v1 Chat Endpoint
+CHAT_URL = "https://router.huggingface.co/v1/chat/completions"
+# Keep hf-inference for Embedding (Task: 'feature-extraction')
 EMBED_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2"
-CHAT_URL = "https://router.huggingface.co/hf-inference/models/google/flan-t5-base"
 
 class RAGService:
     def __init__(self):
         """
         Refactored RAG Service for Production (Zero-Memory footprint).
-        Uses Hugging Face Inference API for embeddings and dot-product in pure Python.
+        Uses Hugging Face's OpenAI-compatible Chat API for stable generation.
         """
         self.headers = HEADERS
         self.sessions = {}
 
     def _get_embedding(self, text: str):
         """Helper to get text embeddings from HF API."""
+        # Non-Chat model uses the 'hf-inference' router for feature extraction
         response = requests.post(EMBED_URL, headers=self.headers, json={"inputs": text})
         if response.status_code == 200:
             return response.json()
@@ -30,13 +36,10 @@ class RAGService:
 
     def index_document(self, transcript_text: str) -> str:
         if not transcript_text: return None
-        
         chunks = [transcript_text[i:i+500] for i in range(0, len(transcript_text), 400)]
         print(f"RAG SERVICE: Chinking transcript into {len(chunks)} segments...")
-
         session_data = {"chunks": chunks, "embeddings": []}
         
-        # Batching for HF API stability
         response = requests.post(EMBED_URL, headers=self.headers, json={"inputs": chunks})
         if response.status_code == 200:
             session_data["embeddings"] = response.json()
@@ -64,14 +67,21 @@ class RAGService:
         top_chunks = [session["chunks"][idx] for _, idx in scores[:2]]
         context = " ".join(top_chunks)
         
-        prompt = f"Using this context: '{context}', answer the user question briefly: '{query}'"
+        prompt = f"Using this context: '{context}', briefly answer: '{query}'"
+        
+        # CORRECT v1 Chat Payload
+        payload = {
+            "model": "google/flan-t5-base",
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 512
+        }
         
         try:
-            res = requests.post(CHAT_URL, headers=self.headers, json={"inputs": prompt})
+            res = requests.post(CHAT_URL, headers=self.headers, json=payload)
             if res.status_code == 200:
                 answer = res.json()
-                if isinstance(answer, list): return answer[0].get("generated_text", "").strip()
-                return answer.get("generated_text", "").strip()
-            return f"Search result found context but failed to generate answer: {context[:100]}..."
+                # Parsing OpenAI-style Choice response
+                return answer.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            return f"Search result found context but failed into generate answer: {context[:100]}..."
         except Exception as e:
             return f"RAG Search failed: {str(e)}"
