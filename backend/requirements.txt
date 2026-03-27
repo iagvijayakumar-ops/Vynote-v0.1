@@ -2,7 +2,8 @@ flask
 flask-cors
 openai-whisper
 openai
-torch>=2.4.0
+torch==2.0.1+cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
 torchvision
 torchaudio
 pydantic
@@ -13,3 +14,4 @@ langchain-ollama
 chromadb
 sentence-transformers
 langchain-community
+gunicorn
