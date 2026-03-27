@@ -5,9 +5,9 @@ os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-from .routes.audio_routes import audio_bp
-from .routes.nlp_routes import nlp_bp
-from .routes.rag_routes import rag_bp
+from routes.audio_routes import audio_bp
+from routes.nlp_routes import nlp_bp
+from routes.rag_routes import rag_bp
 
 def create_app():
     """
