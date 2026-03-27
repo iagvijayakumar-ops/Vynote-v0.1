@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply transition-colors duration-500 overflow-x-hidden;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  /* No-scrollbar utility for clean glass cards */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Fixed Circular Dependency by using .dark parent selector instead of dark: variant in @apply */
+  .interactive-glow:hover {
+    @apply shadow-[0_0_30px_rgba(139,92,246,0.3)];
+  }
+  .dark .interactive-glow:hover {
+    @apply shadow-[0_0_30px_rgba(139,92,246,0.15)];
+  }
+
+  .neo-glow {
+    @apply shadow-[0_0_20px_rgba(139,92,246,0.3)] border-violet-500/30;
+  }
+  .dark .neo-glow {
+    @apply border-white/10;
+  }
+
+  .hover-lift {
+    @apply hover:-translate-y-1 hover:shadow-2xl transition-all duration-300;
+  }
+}
+
+/* Custom scrollbar for dark mode / light mode consistency */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+/* Fix circular dependency for scrollbar thumb */
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
+}
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-white/10 hover:bg-white/20;
+}
+
+/* Animation utilities for Hero */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
