@@ -5,17 +5,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Production API Configuration
+HF_TOKEN = os.getenv("HF_TOKEN")
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
+# Corrected Router Endpoint
+API_URL = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3"
+
 class AssessmentService:
     def __init__(self):
         """
         Refactored Assessment Service for Production.
         Uses external Hugging Face Inference API for JSON-based quiz generation.
         """
-        self.api_token = os.getenv("HF_TOKEN")
-        # Mistral-7B-Instruct-v0.3 is excellent at following JSON formatting instructions
-        self.model_id = "mistralai/Mistral-7B-Instruct-v0.3"
-        self.api_url = f"https://router.huggingface.co/hf-inference/models/{self.model_id}"
-        self.headers = {"Authorization": f"Bearer {self.api_token}"} if self.api_token else {}
+        self.api_url = API_URL
+        self.headers = HEADERS
 
     def generate_quiz_cards(self, structured_notes: str) -> dict:
         """Generates Quiz and Flashcards via external API."""
@@ -39,7 +42,6 @@ class AssessmentService:
         JSON:
         """
         
-        # We wrap in formatting for Mistral instruction tuning
         payload = {
             "inputs": f"<s>[INST] {prompt} [/INST]",
             "parameters": {"max_new_tokens": 800, "temperature": 0.1, "return_full_text": False}
@@ -52,7 +54,6 @@ class AssessmentService:
                 if isinstance(text, list): text = text[0].get("generated_text", "{}")
                 else: text = text.get("generated_text", "{}")
                 
-                # Simple cleanup in case the model returns markdown code blocks
                 clean_text = text.replace("```json", "").replace("```", "").strip()
                 return json.loads(clean_text)
             return {"error": f"API Error {res.status_code}"}

@@ -4,20 +4,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Production API Configuration
+HF_TOKEN = os.getenv("HF_TOKEN")
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
+# Corrected Router Endpoint per Senior Engineer instructions
+API_URL = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3"
+
 class NLPService:
     def __init__(self):
         """
         Refactored NLP Service for Production.
-        Uses Hugging Face Inference API (Mistral-7B or Phi-3) 
-        instead of local Ollama for zero memory footprint on Render.
+        Uses Hugging Face Inference API for zero memory footprint on Render.
         """
-        self.api_token = os.getenv("HF_TOKEN")
-        # Mistral-7B-Instruct is a high-quality production-ready instruction model
-        self.model_id = "mistralai/Mistral-7B-Instruct-v0.3"
-        self.api_url = f"https://router.huggingface.co/hf-inference/models/{self.model_id}"
-        self.headers = {"Authorization": f"Bearer {self.api_token}"} if self.api_token else {}
+        self.api_url = API_URL
+        self.headers = HEADERS
 
-        if not self.api_token:
+        if not HF_TOKEN:
             print("WARNING: HF_TOKEN not set in NLPService. AI generation will fail.")
 
     def _query_hf_api(self, prompt_text: str) -> str:
@@ -31,7 +33,6 @@ class NLPService:
             response = requests.post(self.api_url, headers=self.headers, json=payload)
             if response.status_code == 200:
                 result = response.json()
-                # Handle both list responses and dictionary responses from HF
                 if isinstance(result, list) and len(result) > 0:
                     return result[0].get("generated_text", "").strip()
                 return result.get("generated_text", "").strip()

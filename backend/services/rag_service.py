@@ -5,25 +5,25 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Production API Configuration
+HF_TOKEN = os.getenv("HF_TOKEN")
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
+# Corrected Router Endpoints
+EMBED_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2"
+CHAT_URL = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3"
+
 class RAGService:
     def __init__(self):
         """
         Refactored RAG Service for Production (Zero-Memory footprint).
         Uses Hugging Face Inference API for embeddings and dot-product in pure Python.
-        Replaces ChromaDB, Torch, and LangChain for Render free tier stability.
         """
-        self.api_token = os.getenv("HF_TOKEN")
-        # Lightweight and accurate embedding model for API inference
-        self.model_id = "sentence-transformers/all-MiniLM-L6-v2"
-        self.api_url = f"https://router.huggingface.co/hf-inference/models/{self.model_id}"
-        self.headers = {"Authorization": f"Bearer {self.api_token}"} if self.api_token else {}
-        
-        # Session storage: session_id -> { "chunks": [str], "embeddings": [[float]] }
+        self.headers = HEADERS
         self.sessions = {}
 
     def _get_embedding(self, text: str):
         """Helper to get text embeddings from HF API."""
-        response = requests.post(self.api_url, headers=self.headers, json={"inputs": text})
+        response = requests.post(EMBED_URL, headers=self.headers, json={"inputs": text})
         if response.status_code == 200:
             return response.json()
         return None
@@ -32,16 +32,13 @@ class RAGService:
         """Chunks the transcript and pre-computes embeddings via API."""
         if not transcript_text: return None
         
-        # 1. Simple Chunking (approx 500 chars)
         chunks = [transcript_text[i:i+500] for i in range(0, len(transcript_text), 400)]
         print(f"RAG SERVICE: Chinking transcript into {len(chunks)} segments...")
 
-        # 2. Get embeddings for all chunks via HF
-        # Note: In production we'd batch this, but for simplicity we map it
         session_data = {"chunks": chunks, "embeddings": []}
         
         # Batching for HF API stability
-        response = requests.post(self.api_url, headers=self.headers, json={"inputs": chunks})
+        response = requests.post(EMBED_URL, headers=self.headers, json={"inputs": chunks})
         if response.status_code == 200:
             session_data["embeddings"] = response.json()
             session_id = str(uuid.uuid4())
@@ -63,28 +60,20 @@ class RAGService:
         
         if not query_embedding: return "Search engine currently offline."
         
-        # 3. Simple cosine similarity search across cached embeddings
         scores = []
         for idx, chunk_emb in enumerate(session["embeddings"]):
-            # Dot product (both normalized by HF)
             score = sum(a * b for a, b in zip(query_embedding, chunk_emb))
             scores.append((score, idx))
             
         scores.sort(key=lambda x: x[0], reverse=True)
-        top_chunks = [session["chunks"][idx] for _, idx in scores[:2]] # Top 2 context chunks
+        top_chunks = [session["chunks"][idx] for _, idx in scores[:2]]
         context = " ".join(top_chunks)
-        
-        # 4. Final Answer Generation via API (Mistral)
-        # We reuse the NLP methodology here for zero local CPU load
-        nlp_token = os.getenv("HF_TOKEN")
-        nlp_url = "https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3"
-        nlp_headers = {"Authorization": f"Bearer {nlp_token}"}
         
         prompt = f"Using this context: '{context}', answer the user question briefly: '{query}'"
         payload = {"inputs": f"<s>[INST] {prompt} [/INST]", "parameters": {"max_new_tokens": 512}}
         
         try:
-            res = requests.post(nlp_url, headers=nlp_headers, json=payload)
+            res = requests.post(CHAT_URL, headers=self.headers, json=payload)
             if res.status_code == 200:
                 answer = res.json()
                 if isinstance(answer, list): return answer[0].get("generated_text", "").strip()
