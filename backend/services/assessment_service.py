@@ -7,49 +7,41 @@ load_dotenv()
 
 # Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
-# Stable OpenAI-Compatible Chat Gateway
-CHAT_URL = "https://router.huggingface.co/v1/chat/completions"
-MODEL_ID = "google/flan-t5-base"
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
+# Corrected Inference Router Endpoint
+API_URL = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn"
 
 class AssessmentService:
     def __init__(self):
         """
         Refactored Assessment Service for Production.
-        Uses Hugging Face's OpenAI-compatible Chat API for zero memory footprint.
+        Uses external Hugging Face Inference API for study tool generation.
         """
-        self.api_url = CHAT_URL
-        self.headers = {
-            "Authorization": f"Bearer {HF_TOKEN}",
-            "Content-Type": "application/json"
-        }
+        self.api_url = API_URL
+        self.headers = HEADERS
 
     def generate_quiz_cards(self, structured_notes: str) -> dict:
         """Generates Quiz and Flashcards via external API."""
         if not structured_notes: return {"error": "Empty notes."}
         
-        prompt = f"Convert these notes into a JSON object with 3 flashcards and 2 MCQ quizzes: {structured_notes[:2000]}"
-        
-        payload = {
-            "model": MODEL_ID,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 800
-        }
+        # Note: facebook/bart-large-cnn is primarily a summarization model.
+        # It's less reliable at complex JSON formatting than Mistral, so we simplify.
+        prompt = f"Summarize these notes into questions and answers: {structured_notes[:2000]}"
         
         try:
-            # We use json= here per instructions
-            res = requests.post(self.api_url, headers=self.headers, json=payload)
-            
+            # CORRECT FORMAT FOR BART: json={"inputs": prompt} on the hf-inference route
+            res = requests.post(self.api_url, headers=self.headers, json={"inputs": prompt})
             if res.status_code == 200:
-                result = res.json()
-                # Parse OpenAI response: choices[0].message.content
-                text = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                text = res.json()
+                if isinstance(text, list): text = text[0].get("summary_text", "{}")
+                else: text = text.get("summary_text", "{}")
                 
-                # Cleanup for JSON extraction
+                # Cleanup for JSON extraction fallback
                 try:
                     clean_text = text.replace("```json", "").replace("```", "").strip()
                     return json.loads(clean_text)
                 except:
-                     # Fallback if t5-base does not return perfect JSON
+                     # Fallback if BART fails to return perfect JSON
                      return {
                          "flashcards": [{"front": "Summary", "back": text}],
                          "quizzes": []

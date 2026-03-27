@@ -7,28 +7,22 @@ load_dotenv()
 
 # Production API Configuration per Senior Engineer
 HF_TOKEN = os.getenv("HF_TOKEN")
-HEADERS = {
-    "Authorization": f"Bearer {HF_TOKEN}",
-    "Content-Type": "application/json"
-}
-
-# Corrected v1 Chat Endpoint
-CHAT_URL = "https://router.huggingface.co/v1/chat/completions"
-# Keep hf-inference for Embedding (Task: 'feature-extraction')
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
+# Corrected Inference Router Endpoints
 EMBED_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2"
+CHAT_URL = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn"
 
 class RAGService:
     def __init__(self):
         """
         Refactored RAG Service for Production (Zero-Memory footprint).
-        Uses Hugging Face's OpenAI-compatible Chat API for stable generation.
+        Uses Hugging Face Inference API for both embeddings and BART generation.
         """
         self.headers = HEADERS
         self.sessions = {}
 
     def _get_embedding(self, text: str):
         """Helper to get text embeddings from HF API."""
-        # Non-Chat model uses the 'hf-inference' router for feature extraction
         response = requests.post(EMBED_URL, headers=self.headers, json={"inputs": text})
         if response.status_code == 200:
             return response.json()
@@ -67,21 +61,17 @@ class RAGService:
         top_chunks = [session["chunks"][idx] for _, idx in scores[:2]]
         context = " ".join(top_chunks)
         
-        prompt = f"Using this context: '{context}', briefly answer: '{query}'"
-        
-        # CORRECT v1 Chat Payload
-        payload = {
-            "model": "google/flan-t5-base",
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 512
-        }
+        prompt = f"Using this context: '{context}', answer the user question briefly: '{query}'"
+        payload = {"inputs": prompt}
         
         try:
+            # CORRECT FORMAT FOR BART: json={"inputs": prompt} on the hf-inference route
             res = requests.post(CHAT_URL, headers=self.headers, json=payload)
             if res.status_code == 200:
                 answer = res.json()
-                # Parsing OpenAI-style Choice response
-                return answer.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                if isinstance(answer, list) and len(answer) > 0:
+                    return answer[0].get("summary_text", "") or answer[0].get("generated_text", "")
+                return answer.get("generated_text", "").strip()
             return f"Search result found context but failed into generate answer: {context[:100]}..."
         except Exception as e:
             return f"RAG Search failed: {str(e)}"
